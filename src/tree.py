@@ -38,11 +38,11 @@ class TreeNode:
     self.__func = func
     self.__reset_args()
 
-  def invoke(self):
+  def eval(self):
     '''
-    Invoke current GP-tree recursively.
+    Evaluate current GP-tree recursively.
     '''
-    args = [i.invoke() for i in self.__args]
+    args = [i.eval() for i in self.__args]
     return self.__func(*args)
 
   def dumps(self):
@@ -241,13 +241,13 @@ if __name__ == '__main__':
   tree = tm.generate(random.randint(10, 30))
   print('original tree:')
   print(tree)
-  print('=>', tree.invoke())
+  print('=>', tree.eval())
   t = tree.duplicate()
   tm.mutate(tree, random.randint(2, 10))
   print('mutated tree:')
   print(tree)
-  print('=>', tree.invoke())
+  print('=>', tree.eval())
   print('hybridized tree:')
   ht = tm.crossover(t, tree)
   print(ht)
-  print('=>', ht.invoke())
+  print('=>', ht.eval())
