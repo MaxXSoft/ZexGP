@@ -1,6 +1,7 @@
 from inspect import signature
 import random
 from copy import deepcopy
+from define import GenMethod
 
 
 class TreeNode:
@@ -55,49 +56,45 @@ class TreeNode:
     else:
       return self.__name
 
-  def generate(self, callback):
+  def grow_gen(self, depth, node_gen, term_gen):
     '''
-    Generate child nodes in BFS way.
+    Generate child nodes recursively using 'grow' method.
 
     Parameters
     -----
-    callback: Callable[[], Optional[TreeNode]]
-      Function that randomly returns a function/terminal node.
-      Generation will stop if callback returns None.
+    depth: int
+      Maximum depth of generated tree.
+    node_gen: Callable[[], TreeNode]
+      Function that randomly returns a new function/terminal node.
+    term_gen: Callable[[], TreeNode]
+      Function that randomly returns a new terminal node.
     '''
-    # TODO: try to generate an unbalanced tree?
-    q = [self]
-    while q:
-      top = q.pop(0)
-      for i in range(len(top.__args)):
-        top.__args[i] = callback()
-        if top.__args[i]:
-          q.append(top.__args[i])
+    for i in range(len(self.__args)):
+      if depth:
+        self.__args[i] = node_gen()
+        self.__args[i].grow_gen(depth - 1, node_gen, term_gen)
+      else:
+        self.__args[i] = term_gen()
 
-  def trim(self, callback):
+  def full_gen(self, depth, func_gen, term_gen):
     '''
-    Replace all non-terminal leaf nodes with terminals.
+    Generate child nodes recursively using 'full' method.
 
     Parameters
     -----
-    callback: Callable[[], TreeNode]
-      Function that returns a new terminal node.
+    depth: int
+      Maximum depth of generated tree.
+    func_gen: Callable[[], TreeNode]
+      Function that randomly returns a new function node.
+    term_gen: Callable[[], TreeNode]
+      Function that randomly returns a new terminal node.
     '''
-    # check if current node needs to be replaced
-    trim_flag = False
-    for i in self.__args:
-      if not i:
-        trim_flag = True
-        break
-    # recursively replace
-    if trim_flag:
-      node = callback()
-      self.__name = node.__name
-      self.__func = node.__func
-      self.__args = node.__args
-    else:
-      for i in self.__args:
-        i.trim(callback)
+    for i in range(len(self.__args)):
+      if depth:
+        self.__args[i] = func_gen()
+        self.__args[i].grow(depth - 1, func_gen, term_gen)
+      else:
+        self.__args[i] = term_gen()
 
   def select(self, depth=0):
     '''
@@ -152,11 +149,28 @@ class TreeManager:
     # all terminals (with no argument)
     self.__terms = {}
 
+  def __pick_all(self):
+    return random.choice(list(self.__funcs.items()) +
+                         list(self.__terms.items()))
+
   def __pick_func(self):
     return random.choice(list(self.__funcs.items()))
 
   def __pick_term(self):
     return random.choice(list(self.__terms.items()))
+
+  def __tree_gen(self, tree, method, depth):
+    assert depth > 0
+    assert len(self.__funcs) > 0 and len(self.__terms) > 0
+    node_gen = lambda: TreeNode(*self.__pick_all())
+    func_gen = lambda: TreeNode(*self.__pick_func())
+    term_gen = lambda: TreeNode(*self.__pick_term())
+    if method == GenMethod.GROW:
+      tree.grow_gen(depth, node_gen, term_gen)
+    elif method == GenMethod.FULL:
+      tree.full_gen(depth, func_gen, term_gen)
+    else:
+      raise RuntimeError('invalid generation method')
 
   def add(self, name, func):
     '''
@@ -168,31 +182,22 @@ class TreeManager:
     else:
       self.__terms[name] = func
 
-  def generate(self, scale):
+  def generate(self, method, depth):
     '''
-    Generate a new tree randomly.
+    Generate a new tree randomly using specific method.
 
     Parameters
     -----
-    scale: int
-      Scale of generated tree.
+    method: GenMethod
+      Generation method.
+    depth: int
+      Maximum depth of generated tree.
     '''
-    def gen_node():
-      nonlocal scale
-      if scale <= 0:
-        return None
-      else:
-        scale -= 1
-        return TreeNode(*self.__pick_func())
-
-    assert scale > 0
-    assert len(self.__funcs) > 0 and len(self.__terms) > 0
-    tree = gen_node()
-    tree.generate(gen_node)
-    tree.trim(lambda: TreeNode(*self.__pick_term()))
+    tree = TreeNode(*self.__pick_func())
+    self.__tree_gen(tree, method, depth)
     return tree
 
-  def mutate(self, tree, scale):
+  def mutate(self, tree, method, depth):
     '''
     Perform mutation on a specific tree.
 
@@ -200,24 +205,15 @@ class TreeManager:
     -----
     tree: TreeNode
       The specific tree.
-    scale: int
-      Scale of generated subtree.
+    method: GenMethod
+      Method of subtree generation.
+    depth: int
+      Maximum depth of generated subtree.
     '''
-    def gen_node():
-      nonlocal scale
-      if scale <= 0:
-        return None
-      else:
-        scale -= 1
-        return TreeNode(*self.__pick_func())
-
-    assert scale > 0
-    assert len(self.__funcs) > 0 and len(self.__terms) > 0
     sub, _ = tree.select()
     if not len(sub):
       sub.set_func(*self.__pick_func())
-    sub.generate(gen_node)
-    sub.trim(lambda: TreeNode(*self.__pick_term()))
+    self.__tree_gen(sub, method, depth)
 
   def crossover(self, tree1, tree2):
     '''
@@ -238,12 +234,12 @@ if __name__ == '__main__':
   tm.add('1', lambda: 1)
   tm.add('2', lambda: 2)
   tm.add('3', lambda: 3)
-  tree = tm.generate(random.randint(10, 30))
+  tree = tm.generate(GenMethod.GROW, random.randint(2, 10))
   print('original tree:')
   print(tree)
   print('=>', tree.eval())
   t = tree.duplicate()
-  tm.mutate(tree, random.randint(2, 10))
+  tm.mutate(tree, GenMethod.GROW, random.randint(2, 10))
   print('mutated tree:')
   print(tree)
   print('=>', tree.eval())
