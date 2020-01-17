@@ -17,3 +17,13 @@ class SelectMethod(Enum):
   '''
   FITNESS = 0
   TOURNAMENT = 1
+
+
+@unique
+class Operation(Enum):
+  '''
+  All possible operation during generation.
+  '''
+  CROSSOVER = 0
+  MUTATION = 1
+  REPRODUCTION = 2
