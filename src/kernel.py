@@ -18,7 +18,6 @@ class Kernel:
       'probCrossover': 0.8,
       'probMutation': 0.1,
       'probReproduction': 0.1,
-      'probLeafMutation': 0.5,
       'minDepth': 2,
       'maxDepth': 10,
       'genMethod': 'grow',
