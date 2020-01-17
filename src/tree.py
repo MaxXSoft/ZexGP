@@ -52,7 +52,7 @@ class TreeNode:
     '''
     args = [i.dumps() for i in self.__args]
     if args:
-      return '({} {})'.format(self.__name, ' '.join(args))
+      return f'({self.__name} {" ".join(args)})'
     else:
       return self.__name
 
