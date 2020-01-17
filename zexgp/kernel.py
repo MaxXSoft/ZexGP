@@ -2,7 +2,6 @@ from config import ConfigManager
 from tree import TreeManager
 from define import GenMethod, SelectMethod, Operation
 import random
-from functools import reduce
 
 
 class Kernel:
@@ -51,7 +50,7 @@ class Kernel:
       self.__conf['probMutation'],
       self.__conf['probReproduction'],
     ]
-    return random.choices(list(Operation), weights=w)
+    return random.choices(list(Operation), weights=w)[0]
 
   def __log(self, msg):
     if not self.__quiet:
@@ -64,11 +63,13 @@ class Kernel:
     method = self.__get_select_method()
     if method == SelectMethod.FITNESS:
       # get weights of each individuals
-      sum = reduce(lambda x, y: x[1] + y[1], pop)
+      sum = 0
+      for _, f in pop:
+        sum += f
       w = [i[1] / sum for i in pop]
       # random choice
-      t1, _ = random.choices(pop, weights=w)
-      t2, _ = random.choices(pop, weights=w)
+      t1, _ = random.choices(pop, weights=w)[0]
+      t2, _ = random.choices(pop, weights=w)[0]
       return t1, t2
     elif method == SelectMethod.TOURNAMENT:
       # get tournament
@@ -116,8 +117,8 @@ class Kernel:
 
     Parameter
     -----
-    fit_func: Callable[Any, float]
-      Fitness function, accepts individual's output and returns fitness.
+    fit_func: Callable[TreeNode, float]
+      Fitness function, accepts an individual (tree) and returns fitness.
     '''
     self.__fit_func = fit_func
 
@@ -142,7 +143,7 @@ class Kernel:
       for _ in range(self.__conf['populationSize']):
         tree = self.__tm.generate(self.__get_gen_method(),
                                   self.__get_depth())
-        pop.append((tree, self.__fit_func(tree.eval())))
+        pop.append((tree, self.__fit_func(tree)))
       # perform GP
       for gen in range(self.__conf['maxGenerations']):
         # generate next generation
@@ -163,11 +164,12 @@ class Kernel:
           else:
             assert False
           # insert into population
-          next_pop.append((tree, self.__fit_func(tree.eval())))
+          next_pop.append((tree, self.__fit_func(tree)))
         # update status
         pop = next_pop
-        best = max(pop, key=lambda x: x[1])
-        self.__log(f'run: {run}, gen: {gen}, best: {best}')
+        best = max(pop, key=lambda x: x[1])[1]
+        worst = min(pop, key=lambda x: x[1])[1]
+        self.__log(f'run: {run}, gen: {gen}, best: {best}, worst: {worst}')
       # update results
-      results.append(max(pop, key=lambda x: x[0]))
+      results.append(max(pop, key=lambda x: x[1])[0])
     return results

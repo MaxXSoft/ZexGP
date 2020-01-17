@@ -92,7 +92,7 @@ class TreeNode:
     for i in range(len(self.__args)):
       if depth:
         self.__args[i] = func_gen()
-        self.__args[i].grow(depth - 1, func_gen, term_gen)
+        self.__args[i].full_gen(depth - 1, func_gen, term_gen)
       else:
         self.__args[i] = term_gen()
 
