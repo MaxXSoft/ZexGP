@@ -1,5 +1,6 @@
 from inspect import signature
 import random
+from copy import deepcopy
 
 
 class TreeNode:
@@ -19,7 +20,7 @@ class TreeNode:
   def __setitem__(self, index, value):
     assert isinstance(value, TreeNode)
     self.__args[index] = value
-  
+
   def __len__(self):
     return len(self.__args)
 
@@ -118,6 +119,26 @@ class TreeNode:
       else:
         return (None, d)
 
+  def replace(self, tree, depth=0):
+    '''
+    Replace a random child node with a specific tree.
+    '''
+    if self.__args:
+      d = random.choice(self.__args).replace(tree, depth + 1)
+      if d == depth:
+        self.__name = tree.__name
+        self.__func = tree.__func
+        self.__args = deepcopy(tree.__args)
+    else:
+      d = random.randint(0, depth - 1) + 1
+    return d
+
+  def duplicate(self):
+    '''
+    Return a copy of current tree.
+    '''
+    return deepcopy(self)
+
 
 class TreeManager:
   '''
@@ -170,7 +191,7 @@ class TreeManager:
     tree.generate(gen_node)
     tree.trim(lambda: TreeNode(*self.__pick_term()))
     return tree
-  
+
   def mutate(self, tree, scale):
     '''
     Perform mutation on a specific tree.
@@ -198,6 +219,14 @@ class TreeManager:
     sub.generate(gen_node)
     sub.trim(lambda: TreeNode(*self.__pick_term()))
 
+  def crossover(self, tree1, tree2):
+    '''
+    Perform a recombination between two specific trees.
+    '''
+    tree = tree1.duplicate()
+    tree.replace(tree2.select()[0])
+    return tree
+
 
 if __name__ == '__main__':
   import sys
@@ -210,8 +239,15 @@ if __name__ == '__main__':
   tm.add('2', lambda: 2)
   tm.add('3', lambda: 3)
   tree = tm.generate(random.randint(10, 30))
+  print('original tree:')
   print(tree)
-  print(tree.invoke())
+  print('=>', tree.invoke())
+  t = tree.duplicate()
   tm.mutate(tree, random.randint(2, 10))
+  print('mutated tree:')
   print(tree)
-  print(tree.invoke())
+  print('=>', tree.invoke())
+  print('hybridized tree:')
+  ht = tm.crossover(t, tree)
+  print(ht)
+  print('=>', ht.invoke())
