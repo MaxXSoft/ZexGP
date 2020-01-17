@@ -19,6 +19,15 @@ class TreeNode:
   def __setitem__(self, index, value):
     assert isinstance(value, TreeNode)
     self.__args[index] = value
+  
+  def __len__(self):
+    return len(self.__args)
+
+  def __str__(self):
+    return self.dumps()
+
+  def __repr__(self):
+    return self.dumps()
 
   def set_func(self, name, func):
     '''
@@ -89,6 +98,26 @@ class TreeNode:
       for i in self.__args:
         i.trim(callback)
 
+  def select(self, depth=0):
+    '''
+    Select a subtree randomly.
+
+    Return: Tuple[Optional[TreeNode], int]
+      Selected subtree and its depth.
+    '''
+    if self.__args:
+      node, d = random.choice(self.__args).select(depth + 1)
+      if d == depth:
+        return (self, d)
+      else:
+        return (node, d)
+    else:
+      d = random.randint(0, depth - 1) + 1
+      if d == depth:
+        return (self, d)
+      else:
+        return (None, d)
+
 
 class TreeManager:
   '''
@@ -141,17 +170,48 @@ class TreeManager:
     tree.generate(gen_node)
     tree.trim(lambda: TreeNode(*self.__pick_term()))
     return tree
+  
+  def mutate(self, tree, scale):
+    '''
+    Perform mutation on a specific tree.
+
+    Parameters
+    -----
+    tree: TreeNode
+      The specific tree.
+    scale: int
+      Scale of generated subtree.
+    '''
+    def gen_node():
+      nonlocal scale
+      if scale <= 0:
+        return None
+      else:
+        scale -= 1
+        return TreeNode(*self.__pick_func())
+
+    assert scale > 0
+    assert len(self.__funcs) > 0 and len(self.__terms) > 0
+    sub, _ = tree.select()
+    if not len(sub):
+      sub.set_func(*self.__pick_func())
+    sub.generate(gen_node)
+    sub.trim(lambda: TreeNode(*self.__pick_term()))
 
 
 if __name__ == '__main__':
+  import sys
   tm = TreeManager()
   tm.add('+', lambda x, y: x + y)
   tm.add('-', lambda x, y: x - y)
   tm.add('*', lambda x, y: x * y)
-  tm.add('/', lambda x, y: x / y)
+  tm.add('/', lambda x, y: x / y if y else x / sys.float_info.min)
   tm.add('1', lambda: 1)
   tm.add('2', lambda: 2)
   tm.add('3', lambda: 3)
   tree = tm.generate(random.randint(10, 30))
-  print(tree.dumps())
+  print(tree)
+  print(tree.invoke())
+  tm.mutate(tree, random.randint(2, 10))
+  print(tree)
   print(tree.invoke())
