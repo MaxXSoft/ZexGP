@@ -37,7 +37,7 @@ def fitness(tree):
 
 def get_bit(index):
   '''
-  Helper function of 
+  Read a specific bit in variable 'lines'.
   '''
   return lambda: bool(lines & (1 << index))
 
