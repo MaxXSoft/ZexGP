@@ -1,0 +1,13 @@
+{
+  "populationSize": 50,
+  "maxGenerations": 100,
+  "maxRuns": 3,
+  "probCrossover": 0.8,
+  "probMutation": 0.1,
+  "probReproduction": 0.1,
+  "minDepth": 10,
+  "maxDepth": 20,
+  "genMethod": "grow",
+  "selectMethod": "tournament",
+  "tournamentSize": 10
+}
