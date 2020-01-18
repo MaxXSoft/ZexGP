@@ -72,7 +72,9 @@ class SubRun(Thread):
     elif method == SelectMethod.TOURNAMENT:
       # get tournament
       size = self.__conf['tournamentSize']
-      trees = [random.choice(pop) for _ in range(size)]
+      trees = pop.copy()
+      random.shuffle(trees)
+      trees = trees[:size]
       trees.sort(key=lambda x: x[1], reverse=True)
       # return top 2 trees
       return trees[0][0], trees[1][0]
