@@ -78,6 +78,47 @@ class Kernel:
     else:
       raise RuntimeError('invalid selection method')
 
+  def __run_single(self, run):
+    '''
+    Perform a single run.
+
+    Return: TreeNode
+      Best result.
+    '''
+    # initialize population
+    pop = []
+    for _ in range(self.__conf['populationSize']):
+      tree = self.__tm.generate(self.__get_gen_method(),
+                                self.__get_depth())
+      pop.append((tree, self.__fit_func(tree)))
+    # perform GP
+    for gen in range(self.__conf['maxGenerations']):
+      # generate next generation
+      next_pop = []
+      for _ in range(len(pop)):
+        # pick 2 individuals
+        t1, t2 = self.__select_tree(pop)
+        # perform operation
+        op = self.__get_op()
+        if op == Operation.CROSSOVER:
+          tree = self.__tm.crossover(t1, t2)
+        elif op == Operation.MUTATION:
+          tree = t1.duplicate()
+          self.__tm.mutate(tree, self.__get_gen_method(),
+                           self.__get_depth())
+        elif op == Operation.REPRODUCTION:
+          tree = t1.duplicate()
+        else:
+          assert False
+        # insert into population
+        next_pop.append((tree, self.__fit_func(tree)))
+      # update status
+      pop = next_pop
+      best = max(pop, key=lambda x: x[1])[1]
+      worst = min(pop, key=lambda x: x[1])[1]
+      self.__log(f'run: {run}, gen: {gen}, best: {best}, worst: {worst}')
+    return max(pop, key=lambda x: x[1])[0]
+
   def load_conf(self, conf):
     '''
     Load configuration.
@@ -129,44 +170,16 @@ class Kernel:
     '''
     Run a genetic programming process.
 
-    Return: List[TreeNode]
+    Return: List[Optional[TreeNode]]
       Results of all runs.
     '''
     results = []
     for run in range(self.__conf['maxRuns']):
       self.__log(f'run {run} started')
-      # initialize population
-      pop = []
-      for _ in range(self.__conf['populationSize']):
-        tree = self.__tm.generate(self.__get_gen_method(),
-                                  self.__get_depth())
-        pop.append((tree, self.__fit_func(tree)))
-      # perform GP
-      for gen in range(self.__conf['maxGenerations']):
-        # generate next generation
-        next_pop = []
-        for _ in range(len(pop)):
-          # pick 2 individuals
-          t1, t2 = self.__select_tree(pop)
-          # perform operation
-          op = self.__get_op()
-          if op == Operation.CROSSOVER:
-            tree = self.__tm.crossover(t1, t2)
-          elif op == Operation.MUTATION:
-            tree = t1.duplicate()
-            self.__tm.mutate(tree, self.__get_gen_method(),
-                             self.__get_depth())
-          elif op == Operation.REPRODUCTION:
-            tree = t1.duplicate()
-          else:
-            assert False
-          # insert into population
-          next_pop.append((tree, self.__fit_func(tree)))
-        # update status
-        pop = next_pop
-        best = max(pop, key=lambda x: x[1])[1]
-        worst = min(pop, key=lambda x: x[1])[1]
-        self.__log(f'run: {run}, gen: {gen}, best: {best}, worst: {worst}')
       # update results
-      results.append(max(pop, key=lambda x: x[1])[0])
+      try:
+        results.append(self.__run_single(run))
+      except KeyboardInterrupt:
+        self.__log(f'run {run} terminated')
+        results.append(None)
     return results
