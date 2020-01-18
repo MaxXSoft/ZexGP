@@ -25,12 +25,12 @@ class Kernel:
     })
     self.__tm = TreeManager()
     self.__gen_method = {
-        'grow': GenMethod.GROW,
-        'full': GenMethod.FULL,
+      'grow': GenMethod.GROW,
+      'full': GenMethod.FULL,
     }
     self.__select_method = {
-        'fitness': SelectMethod.FITNESS,
-        'tournament': SelectMethod.TOURNAMENT,
+      'fitness': SelectMethod.FITNESS,
+      'tournament': SelectMethod.TOURNAMENT,
     }
     self.__fit_func = None
     self.__quiet = False
