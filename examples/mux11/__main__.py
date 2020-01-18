@@ -7,7 +7,6 @@ from os import path
 
 
 # some necessary global variables
-lines = 0
 table = []
 
 
@@ -23,23 +22,14 @@ def init_lut():
 
 def fitness(tree):
   '''
-  Fitness function.
+  Fitness function. Thread-safe required.
   '''
-  global lines
-  lines = 0
   sum = 0
-  while lines < 2048:
-    if tree.eval() == table[lines]:
+  for l in range(2048):
+    args = (bool(l & (1 << i)) for i in range(11))
+    if tree.eval(*args) == table[l]:
       sum += 1
-    lines += 1
   return sum / 2048
-
-
-def get_bit(index):
-  '''
-  Read a specific bit in variable 'lines'.
-  '''
-  return lambda: bool(lines & (1 << index))
 
 
 # create kernel and load settings from disk
@@ -47,22 +37,22 @@ k = Kernel()
 k.load_conf(path.dirname(__file__) + '/config.json')
 
 # add functions
-k.add('and', lambda x, y: x and y)
-k.add('or', lambda x, y: x or y)
-k.add('not', lambda x: not x)
-k.add('if', lambda c, t, f: t if c else f)
+k.add('and', func=lambda x, y: x and y)
+k.add('or', func=lambda x, y: x or y)
+k.add('not', func=lambda x: not x)
+k.add('if', func=lambda c, t, f: t if c else f)
 
-# add terminals in a tricky way
+# add terminals
 for i in range(8):
-  k.add(f'd{i}', get_bit(i))
+  k.add(f'd{i}', arg_index=i)
 for i in range(3):
-  k.add(f'a{i}', get_bit(i + 8))
+  k.add(f'a{i}', arg_index=i + 8)
 
 # set fitness function
 k.set_fitness(fitness)
 
 # run & print results
 init_lut()
-results = k.run()
+results = k.run(jobs=4)
 for i in results:
   print(i)
