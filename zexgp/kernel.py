@@ -63,10 +63,7 @@ class Kernel:
     method = self.__get_select_method()
     if method == SelectMethod.FITNESS:
       # get weights of each individuals
-      sum = 0
-      for _, f in pop:
-        sum += f
-      w = [i[1] / sum for i in pop]
+      w = [i[1] for i in pop]
       # random choice
       t1, _ = random.choices(pop, weights=w)[0]
       t2, _ = random.choices(pop, weights=w)[0]
