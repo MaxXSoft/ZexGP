@@ -1,6 +1,6 @@
 {
   "populationSize": 100,
-  "maxGenerations": 200,
+  "maxGenerations": 100,
   "maxRuns": 3,
   "probCrossover": 0.8,
   "probMutation": 0.1,
