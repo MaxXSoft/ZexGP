@@ -1,7 +1,7 @@
 from inspect import signature
 import random
 from copy import deepcopy
-from define import GenMethod
+from zexgp.define import GenMethod
 
 
 class TreeNode:

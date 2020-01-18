@@ -1,6 +1,6 @@
-from config import ConfigManager
-from tree import TreeManager
-from define import GenMethod, SelectMethod, Operation
+from zexgp.config import ConfigManager
+from zexgp.tree import TreeManager
+from zexgp.define import GenMethod, SelectMethod, Operation
 import random
 
 
