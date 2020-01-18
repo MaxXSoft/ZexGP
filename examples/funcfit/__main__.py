@@ -69,7 +69,7 @@ k.add('^', pow)
 # add terminals
 k.add('x', lambda: x)
 for i in range(1, 4):
-  k.add(i, get_int(i))
+  k.add(str(i), get_int(i))
 
 # set fitness function
 k.set_fitness(fitness)
