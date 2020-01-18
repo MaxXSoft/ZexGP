@@ -15,15 +15,6 @@ class ConfigManager:
   def __setitem__(self, key, value):
     self.__config[key] = value
 
-  def __getattr__(self, name):
-    return self.__config[name]
-
-  def __setattr__(self, name: str, value):
-    if name.startswith('_' + self.__class__.__name__):
-      super().__setattr__(name, value)
-    else:
-      self.__config[name] = value
-
   def load(self, f):
     '''
     Load configuration from file.
