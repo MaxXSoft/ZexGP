@@ -7,10 +7,21 @@ from zexgp.define import GenMethod
 class TreeNode:
   '''
   Single node of GP-tree, can be either a function or a terminal.
+
+  It's not safe to access the same 'TreeNode' in two threads.
+
+  Parameters
+  -----
+  name: str
+    Name of node.
+  func: Optional[Callable[..., Any]]
+    If not 'None', it'll be called when evaluating.
+  arg_index: Optional[int]
+    If not 'None', the specific argument will be returned when evaluating.
   '''
 
-  def __init__(self, name, func):
-    self.set_func(name, func)
+  def __init__(self, name, func=None, arg_index=None):
+    self.reset(name, func, arg_index)
 
   def __reset_args(self):
     self.__args = [None] * len(signature(self.__func).parameters)
@@ -31,20 +42,32 @@ class TreeNode:
   def __repr__(self):
     return self.dumps()
 
-  def set_func(self, name, func):
+  def reset(self, name, func, arg_index):
     '''
-    Reset node name and function.
+    Reset current node.
     '''
-    self.__name = name
-    self.__func = func
-    self.__reset_args()
+    if func:
+      self.__name = name
+      self.__func = func
+      self.__arg_index = None
+      self.__reset_args()
+    elif arg_index is not None:
+      self.__name = name
+      self.__func = None
+      self.__arg_index = arg_index
+      self.__args = []
+    else:
+      raise RuntimeError('both "func" and "arg_index" are None')
 
-  def eval(self):
+  def eval(self, *args):
     '''
     Evaluate current GP-tree recursively.
     '''
-    args = [i.eval() for i in self.__args]
-    return self.__func(*args)
+    if self.__arg_index is not None:
+      return args[self.__arg_index]
+    else:
+      nodes = [i.eval(*args) for i in self.__args]
+      return self.__func(*nodes)
 
   def dumps(self):
     '''
@@ -125,6 +148,7 @@ class TreeNode:
       if d == depth:
         self.__name = tree.__name
         self.__func = tree.__func
+        self.__arg_index = tree.__arg_index
         self.__args = deepcopy(tree.__args)
     else:
       d = random.randint(0, depth - 1) + 1
@@ -150,14 +174,17 @@ class TreeManager:
     self.__terms = {}
 
   def __pick_all(self):
-    return random.choice(list(self.__funcs.items()) +
-                         list(self.__terms.items()))
+    name, (func, index) = random.choice(list(self.__funcs.items()) +
+                                        list(self.__terms.items()))
+    return name, func, index
 
   def __pick_func(self):
-    return random.choice(list(self.__funcs.items()))
+    name, (func, index) = random.choice(list(self.__funcs.items()))
+    return name, func, index
 
   def __pick_term(self):
-    return random.choice(list(self.__terms.items()))
+    name, (func, index) = random.choice(list(self.__terms.items()))
+    return name, func, index
 
   def __tree_gen(self, tree, method, depth):
     assert depth > 0
@@ -172,15 +199,27 @@ class TreeManager:
     else:
       raise RuntimeError('invalid generation method')
 
-  def add(self, name, func):
+  def add(self, name, func=None, arg_index=None):
     '''
-    Add an user defined function to current tree.
+    Add an user defined function or argument reference to current tree.
+
+    Parameters
+    -----
+    name: str
+      Name of function/reference.
+    func: Optional[Callable[..., Any]]
+      User defined function.
+    arg_index: Optional[int]
+      Index of argument refernce if not 'None'.
     '''
-    sig = signature(func)
-    if len(sig.parameters) >= 1:
-      self.__funcs[name] = func
+    if arg_index is not None:
+      self.__terms[name] = (None, arg_index)
     else:
-      self.__terms[name] = func
+      sig = signature(func)
+      if len(sig.parameters) >= 1:
+        self.__funcs[name] = (func, None)
+      else:
+        self.__terms[name] = (func, None)
 
   def generate(self, method, depth):
     '''
@@ -212,7 +251,7 @@ class TreeManager:
     '''
     sub, _ = tree.select()
     if not len(sub):
-      sub.set_func(*self.__pick_func())
+      sub.reset(*self.__pick_func())
     self.__tree_gen(sub, method, depth)
 
   def crossover(self, tree1, tree2):
@@ -233,17 +272,17 @@ if __name__ == '__main__':
   tm.add('/', lambda x, y: x / y if y else x / sys.float_info.min)
   tm.add('1', lambda: 1)
   tm.add('2', lambda: 2)
-  tm.add('3', lambda: 3)
+  tm.add('x', arg_index=0)
   tree = tm.generate(GenMethod.GROW, random.randint(2, 10))
   print('original tree:')
   print(tree)
-  print('=>', tree.eval())
+  print('=>', tree.eval(1))
   t = tree.duplicate()
   tm.mutate(tree, GenMethod.GROW, random.randint(2, 10))
   print('mutated tree:')
   print(tree)
-  print('=>', tree.eval())
+  print('=>', tree.eval(1))
   print('hybridized tree:')
   ht = tm.crossover(t, tree)
   print(ht)
-  print('=>', ht.eval())
+  print('=>', ht.eval(1))

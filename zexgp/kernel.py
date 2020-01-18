@@ -1,6 +1,7 @@
 from zexgp.config import ConfigManager
 from zexgp.tree import TreeManager
 from zexgp.define import GenMethod, SelectMethod, Operation
+from zexgp.thread import SubRun
 import random
 
 
@@ -28,10 +29,6 @@ class Kernel:
       'grow': GenMethod.GROW,
       'full': GenMethod.FULL,
     }
-    self.__select_method = {
-      'fitness': SelectMethod.FITNESS,
-      'tournament': SelectMethod.TOURNAMENT,
-    }
     self.__fit_func = None
     self.__quiet = False
 
@@ -41,46 +38,20 @@ class Kernel:
   def __get_gen_method(self):
     return self.__gen_method.get(self.__conf['genMethod'], -1)
 
-  def __get_select_method(self):
-    return self.__select_method.get(self.__conf['selectMethod'], -1)
-
-  def __get_op(self):
-    w = [
-      self.__conf['probCrossover'],
-      self.__conf['probMutation'],
-      self.__conf['probReproduction'],
-    ]
-    return random.choices(list(Operation), weights=w)[0]
-
   def __log(self, msg):
     if not self.__quiet:
       print(msg)
 
-  def __select_tree(self, pop):
-    '''
-    Select top 2 individuals from specific population.
-    '''
-    method = self.__get_select_method()
-    if method == SelectMethod.FITNESS:
-      # get weights of each individuals
-      w = [i[1] for i in pop]
-      # random choice
-      t1, _ = random.choices(pop, weights=w)[0]
-      t2, _ = random.choices(pop, weights=w)[0]
-      return t1, t2
-    elif method == SelectMethod.TOURNAMENT:
-      # get tournament
-      size = self.__conf['tournamentSize']
-      trees = [random.choice(pop) for _ in range(size)]
-      trees.sort(key=lambda x: x[1], reverse=True)
-      # return top 2 trees
-      return trees[0][0], trees[1][0]
-    else:
-      raise RuntimeError('invalid selection method')
-
-  def __run_single(self, run):
+  def __run_single(self, run, jobs):
     '''
     Perform a single run.
+
+    Parameters
+    -----
+    run: int
+      Id of current run.
+    jobs: int
+      Thread count.
 
     Return: TreeNode
       Best result.
@@ -94,24 +65,18 @@ class Kernel:
     # perform GP
     for gen in range(self.__conf['maxGenerations']):
       # generate next generation
+      subs = []
+      sizes = [len(pop) // jobs] * (jobs - 1)
+      sizes.append(len(pop) - (len(pop) // jobs * (jobs - 1)))
+      for i in sizes:
+        assert i
+        sub = SubRun(self.__conf, self.__tm, self.__fit_func, pop, i)
+        sub.start()
+        subs.append(sub)
       next_pop = []
-      for _ in range(len(pop)):
-        # pick 2 individuals
-        t1, t2 = self.__select_tree(pop)
-        # perform operation
-        op = self.__get_op()
-        if op == Operation.CROSSOVER:
-          tree = self.__tm.crossover(t1, t2)
-        elif op == Operation.MUTATION:
-          tree = t1.duplicate()
-          self.__tm.mutate(tree, self.__get_gen_method(),
-                           self.__get_depth())
-        elif op == Operation.REPRODUCTION:
-          tree = t1.duplicate()
-        else:
-          assert False
-        # insert into population
-        next_pop.append((tree, self.__fit_func(tree)))
+      for s in subs:
+        s.join()
+        next_pop += s.next_pop
       # update status
       pop = next_pop
       best = max(pop, key=lambda x: x[1])[1]
@@ -143,19 +108,30 @@ class Kernel:
     with open(conf, 'w') as f:
       self.__conf.dump(f)
 
-  def add(self, name, func):
+  def add(self, name, func=None, arg_index=None):
     '''
-    Add function/terminal to kernel.
+    Add function, terminal or argument reference to kernel.
+
+    Parameters
+    -----
+    name: str
+      Name of function/reference.
+    func: Optional[Callable[..., Any]]
+      User defined function.
+    arg_index: Optional[int]
+      Index of argument refernce if not 'None'.
     '''
-    self.__tm.add(name, func)
+    self.__tm.add(name, func, arg_index)
 
   def set_fitness(self, fit_func):
     '''
     Set fitness function of current kernel.
 
+    NOTE: fitness function must be thread-safe!
+
     Parameter
     -----
-    fit_func: Callable[TreeNode, float]
+    fit_func: Callable[[TreeNode], float]
       Fitness function, accepts an individual (tree) and returns fitness.
     '''
     self.__fit_func = fit_func
@@ -166,9 +142,14 @@ class Kernel:
     '''
     self.__quiet = quiet
 
-  def run(self):
+  def run(self, jobs=1):
     '''
     Run a genetic programming process.
+
+    Parameters
+    -----
+    jobs: int
+      Thread count in one generation.
 
     Return: List[Optional[TreeNode]]
       Results of all runs.
@@ -178,7 +159,7 @@ class Kernel:
       self.__log(f'run {run} started')
       # update results
       try:
-        results.append(self.__run_single(run))
+        results.append(self.__run_single(run, jobs))
       except KeyboardInterrupt:
         self.__log(f'run {run} terminated')
         results.append(None)
