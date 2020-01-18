@@ -1,3 +1,7 @@
+'''
+An example of using ZexGP to solve the Boolean 11-multiplexer problem.
+'''
+
 from zexgp.kernel import Kernel
 from os import path
 
