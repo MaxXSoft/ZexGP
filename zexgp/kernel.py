@@ -84,6 +84,13 @@ class Kernel:
       self.__log(f'run: {run}, gen: {gen}, best: {best}, worst: {worst}')
     return max(pop, key=lambda x: x[1])[0]
 
+  @property
+  def conf(self):
+    '''
+    Configuration manager.
+    '''
+    return self.__conf
+
   def load_conf(self, conf):
     '''
     Load configuration.
