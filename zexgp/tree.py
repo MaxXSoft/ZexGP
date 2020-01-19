@@ -210,7 +210,7 @@ class TreeManager:
     func: Optional[Callable[..., Any]]
       User defined function.
     arg_index: Optional[int]
-      Index of argument refernce if not 'None'.
+      Index of argument reference if not 'None'.
     '''
     if arg_index is not None:
       self.__terms[name] = (None, arg_index)
